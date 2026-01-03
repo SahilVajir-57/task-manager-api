@@ -6,9 +6,6 @@ import uuid
 from datetime import datetime
 import enum
 
-from app.models.project import Project
-from app.models.user import User
-
 
 class TaskStatus(str, enum.Enum):
     TODO = "todo"

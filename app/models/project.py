@@ -5,9 +5,6 @@ from app.database import Base
 import uuid
 from datetime import datetime
 
-from app.models.task import Task
-from app.models.user import User
-
 
 class Project(Base):
     __tablename__ = "projects"
