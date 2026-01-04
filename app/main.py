@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from app.config import get_settings
+from app.routers import auth
 
 settings = get_settings()
 
@@ -8,6 +9,9 @@ app = FastAPI(
     description="A RESTful API for managing tasks and projects",
     version="1.0.0",
 )
+
+# Include routers
+app.include_router(auth.router)
 
 
 @app.get("/")
