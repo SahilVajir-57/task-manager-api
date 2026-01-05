@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
 from app.models.task import TaskStatus, TaskPriority
-
+from app.schemas.common import PaginatedResponse
 
 # Request schemas
 class TaskCreate(BaseModel):
@@ -53,6 +53,5 @@ class TaskResponse(BaseModel):
         from_attributes = True
 
 
-class TaskListResponse(BaseModel):
+class TaskListResponse(PaginatedResponse):
     tasks: list[TaskResponse]
-    total: int

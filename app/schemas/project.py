@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
 from datetime import datetime
+from app.schemas.common import PaginatedResponse
 
 
 # Request schemas
@@ -26,6 +27,5 @@ class ProjectResponse(BaseModel):
         from_attributes = True
 
 
-class ProjectListResponse(BaseModel):
+class ProjectListResponse(PaginatedResponse):
     projects: list[ProjectResponse]
-    total: int

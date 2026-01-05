@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from app.database import get_db
 from app.dependencies import get_current_active_user
 from app.models.user import User
@@ -11,6 +11,7 @@ from app.schemas.project import (
     ProjectResponse,
     ProjectListResponse,
 )
+import math
 
 router = APIRouter(prefix="/projects", tags=["Projects"])
 
@@ -34,14 +35,35 @@ async def create_project(
 
 @router.get("", response_model=ProjectListResponse)
 async def list_projects(
+    page: int = Query(default=1, ge=1, description="Page number"),
+    per_page: int = Query(default=10, ge=1, le=100, description="Items per page"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
+    # Get total count
+    count_result = await db.execute(
+        select(func.count()).select_from(Project).where(Project.owner_id == current_user.id)
+    )
+    total = count_result.scalar()
+    
+    # Get paginated results
+    offset = (page - 1) * per_page
     result = await db.execute(
-        select(Project).where(Project.owner_id == current_user.id)
+        select(Project)
+        .where(Project.owner_id == current_user.id)
+        .order_by(Project.created_at.desc())
+        .offset(offset)
+        .limit(per_page)
     )
     projects = result.scalars().all()
-    return ProjectListResponse(projects=projects, total=len(projects))
+    
+    return ProjectListResponse(
+        projects=projects,
+        total=total,
+        page=page,
+        per_page=per_page,
+        total_pages=math.ceil(total / per_page) if total > 0 else 0,
+    )
 
 
 @router.get("/{project_id}", response_model=ProjectResponse)

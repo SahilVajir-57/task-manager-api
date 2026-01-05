@@ -60,6 +60,9 @@ async def test_list_projects(client: AsyncClient, auth_headers):
     data = response.json()
     assert data["total"] >= 2
     assert len(data["projects"]) >= 2
+    assert "page" in data
+    assert "per_page" in data
+    assert "total_pages" in data
 
 
 @pytest.mark.asyncio

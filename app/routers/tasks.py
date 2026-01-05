@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from app.database import get_db
 from app.dependencies import get_current_active_user
 from app.models.user import User
@@ -12,6 +12,7 @@ from app.schemas.task import (
     TaskResponse,
     TaskListResponse,
 )
+import math
 
 router = APIRouter(prefix="/projects/{project_id}/tasks", tags=["Tasks"])
 
@@ -44,7 +45,7 @@ async def create_task(
     current_user: User = Depends(get_current_active_user),
 ):
     await get_project_or_404(project_id, current_user, db)
-
+    
     # Validate assignee exists if provided
     if task_data.assignee_id:
         result = await db.execute(
@@ -74,6 +75,8 @@ async def create_task(
 @router.get("", response_model=TaskListResponse)
 async def list_tasks(
     project_id: str,
+    page: int = Query(default=1, ge=1, description="Page number"),
+    per_page: int = Query(default=10, ge=1, le=100, description="Items per page"),
     status: TaskStatus | None = Query(default=None),
     priority: TaskPriority | None = Query(default=None),
     sort_by: str = Query(default="created_at", pattern="^(created_at|due_date|priority)$"),
@@ -83,24 +86,41 @@ async def list_tasks(
 ):
     await get_project_or_404(project_id, current_user, db)
     
-    query = select(Task).where(Task.project_id == project_id)
+    # Base query
+    base_query = select(Task).where(Task.project_id == project_id)
     
     # Apply filters
     if status:
-        query = query.where(Task.status == status)
+        base_query = base_query.where(Task.status == status)
     if priority:
-        query = query.where(Task.priority == priority)
+        base_query = base_query.where(Task.priority == priority)
+    
+    # Get total count
+    count_query = select(func.count()).select_from(base_query.subquery())
+    count_result = await db.execute(count_query)
+    total = count_result.scalar()
     
     # Apply sorting
     sort_column = getattr(Task, sort_by)
     if order == "desc":
-        query = query.order_by(sort_column.desc())
+        base_query = base_query.order_by(sort_column.desc())
     else:
-        query = query.order_by(sort_column.asc())
+        base_query = base_query.order_by(sort_column.asc())
     
-    result = await db.execute(query)
+    # Apply pagination
+    offset = (page - 1) * per_page
+    base_query = base_query.offset(offset).limit(per_page)
+    
+    result = await db.execute(base_query)
     tasks = result.scalars().all()
-    return TaskListResponse(tasks=tasks, total=len(tasks))
+    
+    return TaskListResponse(
+        tasks=tasks,
+        total=total,
+        page=page,
+        per_page=per_page,
+        total_pages=math.ceil(total / per_page) if total > 0 else 0,
+    )
 
 
 @router.get("/{task_id}", response_model=TaskResponse)
