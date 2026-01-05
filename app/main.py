@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from app.config import get_settings
-from app.routers import auth
+from app.routers import auth, projects
 
 settings = get_settings()
 
@@ -12,6 +12,7 @@ app = FastAPI(
 
 # Include routers
 app.include_router(auth.router)
+app.include_router(projects.router)
 
 
 @app.get("/")
